@@ -3,15 +3,18 @@
 // the plugin's marker (<!-- calendar:<id> -->) are imported, so entries that
 // belong to the plugin on a synced device are picked up. Prints JSON.
 // usage:
+//   node obsidian-import.js --vault <path> --format <fmt>
 //   node obsidian-import.js --vault <path> --folder <folder> --format <fmt>
+// Without --folder the scan directory is taken fresh from the vault's
+// daily-notes config ("New file location"); no folder configured = vault root.
 const fs = require("fs")
 const path = require("path")
 
 const args = process.argv.slice(2)
-let vault = "", folder = "Daily", format = "YYYY-MM-DD"
+let vault = "", folder = "", format = "YYYY-MM-DD", folderSet = false
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--vault") vault = args[++i]
-  else if (args[i] === "--folder") folder = args[++i]
+  else if (args[i] === "--folder") { folder = args[++i]; folderSet = true }
   else if (args[i] === "--format") format = args[++i]
 }
 
@@ -24,12 +27,11 @@ const MAX_DESCRIPTION = 2000
 
 function sanitizeFolder(f) {
   return String(f || "")
-    .replace(/^[\/\\]+/, "")
-    .replace(/[\/\\]+$/, "")
     .replace(/[\\]/g, "/")
     .split("/")
-    .filter(function (s) { return s && s !== "." && s !== ".." })
-    .map(function (s) { return s.replace(/[^A-Za-z0-9 _-]/g, "") })
+    .filter(function (s) { return s !== "" && s !== "." && s !== ".." })
+    .map(function (s) { return s.replace(/[\x00-\x1f\x7f]/g, "") })
+    .filter(function (s) { return s !== "" })
     .join("/")
 }
 
@@ -37,6 +39,17 @@ function sanitizeFolder(f) {
 function vaultDir(v) {
   if (!v) return null
   try { return fs.realpathSync(v) } catch (e) { return null }
+}
+
+// Obsidian's daily-notes folder ("New file location"), read fresh at call
+// time. Empty string = notes live at the vault root.
+function dailyNotesFolder(v) {
+  try {
+    const dn = JSON.parse(
+      fs.readFileSync(path.join(v, ".obsidian/daily-notes.json"), "utf8"))
+    if (typeof dn.folder === "string" && dn.folder.trim() !== "") return dn.folder.trim()
+  } catch (e) { /* no config -> vault root */ }
+  return ""
 }
 
 const monthsShort = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -169,6 +182,11 @@ function parseLine(raw, id) {
   }
 }
 
+// Obsidian's daily-notes folder always wins when it is configured; the
+// `--folder` argument is only a fallback for an older panel when Obsidian has
+// no daily-notes folder set (notes then live at the vault root).
+const dnFolder = dailyNotesFolder(vault)
+if (dnFolder !== "" || !folderSet) folder = dnFolder
 folder = sanitizeFolder(folder)
 const rootReal = vaultDir(vault)
 const out = []

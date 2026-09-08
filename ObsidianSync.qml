@@ -8,9 +8,11 @@ import "SpawnGuard.js" as SpawnGuard
 // One-way: calendar -> Obsidian daily notes.
 //
 // After an event is saved, its line is written into the matching daily note
-// (<vault>/Daily/YYYY-MM-DD.md), creating the note if it does not exist. A
-// hidden marker comment (<!-- calendar:<id> -->) lets edits update the same
-// line instead of duplicating it.
+// (<vault>/<daily-notes-folder>/<name>.md), creating the note if it does not
+// exist. The folder is taken from Obsidian's daily-notes plugin config; when
+// no folder is configured, notes live at the vault root. A hidden marker
+// comment (<!-- calendar:<id> -->) lets edits update the same line instead
+// of duplicating it.
 //
 // Preferences are persisted to ~/.config/omarchy/calendar/settings.json. The
 // vault path is auto-detected from ~/.config/obsidian/obsidian.json on first
@@ -30,7 +32,7 @@ Item {
 
   property bool obsidianSync: true
   property string vaultPath: ""
-  property string dailyFolder: "Daily"
+  property string dailyFolder: ""
   property string dailyFormat: "YYYY-MM-DD"
   property bool vaultDetecting: false
   property var pendingEvent: null
@@ -57,10 +59,11 @@ Item {
   function importFromNotes() {
     if (!root.obsidianSync) return
     if (root.vaultPath === "") return
+    // The folder is resolved inside the script from Obsidian's daily-notes
+    // config, not from cached settings.
     importProc.command = [
       "node", root.importScriptPath,
       "--vault", root.vaultPath,
-      "--folder", root.sanitizeFolder(root.dailyFolder),
       "--format", String(root.dailyFormat).slice(0, 64)
     ]
     if (SpawnGuard.valid(importProc.command)) importProc.running = true
@@ -73,7 +76,7 @@ Item {
     var vp = String(obj.vaultPath || "")
     if (vp === "undefined") vp = ""
     root.vaultPath = vp
-    root.dailyFolder = root.sanitizeFolder(String(obj.dailyFolder !== undefined ? obj.dailyFolder : "Daily"))
+    root.dailyFolder = root.sanitizeFolder(String(obj.dailyFolder !== undefined ? obj.dailyFolder : ""))
     root.dailyFormat = String(obj.dailyFormat || "YYYY-MM-DD").slice(0, 64)
     if (root.vaultPath !== "") {
       root.vaultReady()
@@ -180,13 +183,11 @@ function detectVault() {
     root.writeRunning = true
     var w = root.writeQueue.shift()
 
-    var vault = root.vaultPath.replace(/\/+$/, "")
-    var folder = root.sanitizeFolder(root.dailyFolder)
+    // Only the note's filename is decided here; the folder under the vault is
+    // resolved inside obsidian-sync.js from Obsidian's daily-notes config so
+    // writes always follow the "New file location" Obsidian is set to.
     var name = root.formatDateKey(w.dateKey, root.dailyFormat)
-      .replace(/[/\\:*?"<>|]/g, "-") // never allow separators in a note name
-    var note = folder === ""
-      ? vault + "/" + name + ".md"          // vault-root daily notes
-      : vault + "/" + folder + "/" + name + ".md"
+      .replace(/[/\\:*?"<>|]/g, "-") + ".md" // never allow separators in a note name
 
     if (w.mode === "remove") {
       var rid = String(w.id || "")
@@ -198,7 +199,7 @@ function detectVault() {
         "node", root.scriptPath,
         "--vault", root.vaultPath,
         "--delete",
-        "--note", note,
+        "--name", name,
         "--id", rid
       ]
       if (SpawnGuard.valid(syncProc.command)) syncProc.running = true
@@ -220,7 +221,7 @@ function detectVault() {
     syncProc.command = [
       "node", root.scriptPath,
       "--vault", root.vaultPath,
-      "--note", note,
+      "--name", name,
       "--id", String(w.event.id || ""),
       "--line", line
     ]
@@ -232,16 +233,14 @@ function detectVault() {
 // beyond "/", only word chars/spaces/dashes/underscores). Kept in sync with
 // the node scripts so a crafted daily-notes.json can never redirect writes.
   function sanitizeFolder(f) {
-    var s = String(f || "")
-      .replace(/^[/\\]+/, "")
-      .replace(/[/\\]+$/, "")
-      .replace(/[\\]/g, "/")
+    var s = String(f || "").replace(/[\\]/g, "/")
     var parts = s.split("/")
     var out = []
     for (var i = 0; i < parts.length; i++) {
       var p = parts[i]
       if (p === "" || p === "." || p === "..") continue
-      out.push(p.replace(/[^A-Za-z0-9 _-]/g, ""))
+      p = p.replace(/[\x00-\x1f\x7f]/g, "")
+      if (p !== "") out.push(p)
     }
     return out.join("/")
   }
@@ -330,7 +329,7 @@ function detectVault() {
         root.vaultDetecting = false
         var out = null
         try { out = JSON.parse(String(text).trim()) } catch (e) {}
-        if (out && out.vault) {
+        if (out && out.vault && (root.vaultPath === "" || out.vault === root.vaultPath)) {
           root.vaultPath = out.vault
           root.dailyFolder = root.sanitizeFolder(String(out.folder !== undefined ? out.folder : root.dailyFolder))
           root.dailyFormat = out.format ? String(out.format).slice(0, 64) : root.dailyFormat
@@ -362,7 +361,9 @@ function detectVault() {
   }
 
   // Try to learn the vault on startup even if the settings FileView hasn't
-  // reported in yet; detection only runs when no path is stored.
+  // reported in yet; detection also re-reads Obsidian's daily-notes folder /
+  // date format so a change there is picked up instead of keeping a stale
+  // folder (e.g. one this plugin once created as "Daily").
   Component.onCompleted: {
     timerStartup.interval = 800
     timerStartup.repeat = false
@@ -371,8 +372,6 @@ function detectVault() {
 
   Timer {
     id: timerStartup
-    onTriggered: {
-      if (root.vaultPath === "") root.detectVault()
-    }
+    onTriggered: root.detectVault()
   }
 }

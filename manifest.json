@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "author": "Andreia",
   "license": "MIT",
-  "description": "Mini calendar agenda for college schedule and recurring events",
+  "description": "Mini calendar agenda for your schedule — day, week, and month views; one-time and repeating events; per-event reminders; and two-way sync with Obsidian daily notes: events are written into the daily note in the folder Obsidian uses (the \"New file location\"), and can be imported back from reading those notes.",
   "kinds": [
     "bar-widget"
   ],
@@ -14,7 +14,7 @@
   },
   "barWidget": {
     "displayName": "Calendar",
-    "description": "Mini calendar agenda for college schedule and recurring events",
+    "description": "Mini calendar agenda — day, week, and month views, repeating events, reminders, and two-way sync with Obsidian daily notes.",
     "category": "Time",
     "allowMultiple": false
   }

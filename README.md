@@ -38,22 +38,29 @@ Two-way sync between the calendar and your Obsidian daily notes
     present in the notes
   - The **⇩** button imports events found in the notes that the plugin does
     not have yet
-- Vault, daily folder, and date format are auto-detected from Obsidian's own
-  configuration, or stored in `~/.config/omarchy/calendar/settings.json`:
+- Vault, daily notes folder, and date format come from Obsidian's own
+  configuration: detection reads `~/.config/obsidian/obsidian.json` plus the
+  vault's `.obsidian/daily-notes.json` — the file Obsidian itself writes for
+  its Daily notes plugin. The **daily-notes folder is the one Obsidian is
+  configured to use** (the "New file location" setting), no matter its name or
+  nesting (`Journal`, `Journal/Notes`, `Diário`, …). It is re-read on every
+  write, so changing Obsidian's folder takes effect immediately — the plugin
+  never caches, invents, or falls back to a folder of its own.
+- If Obsidian has no daily-notes folder configured, notes live at the vault
+  root, matching Obsidian's default. Folder names may contain Unicode
+  (accents, non-ASCII letters); only path separators, `.`/`..`, and control
+  characters are stripped.
+- Optional overrides live in `~/.config/omarchy/calendar/settings.json`
+  (`dailyFolder` is informational — the folder itself is always read fresh
+  from Obsidian's daily-notes config):
 
       { "obsidianSync": true,
         "vaultPath": "/home/<you>/my-vault",
         "dailyFolder": "Journal/Notes",
         "dailyFormat": "YYYY-MM-DD" }
 
-  Detection reads `~/.config/obsidian/obsidian.json` plus the vault's
-  `.obsidian/daily-notes.json` — the file Obsidian itself writes for its
-  Daily notes plugin — so the **daily-notes folder is whatever Obsidian is
-  configured to use**, no matter its name or nesting (`Daily`,
-  `Journal/Notes`, …). If Obsidian has no daily-notes folder configured the
-  notes live at the vault root, matching Obsidian's own default. A vault kept
-  directly in `~/`, or in any folder under it, is still found even when
-  Obsidian hasn't written its config yet.
+  A vault kept directly in `~/`, or in any folder under it, is still found
+  even when Obsidian hasn't written its config yet.
 
 ## Security
 
@@ -69,7 +76,8 @@ The plugin treats note, vault, and event content as untrusted data:
   or wrapped.
 - Obsidian writes are confined to the vault by canonical path checks (blocks
   `..` escapes and symlinked notes that point outside the vault); folder names
-  taken from Obsidian config are sanitized.
+  taken from Obsidian config are sanitized (only separators, `.`/`..`, and
+  control characters are stripped — Unicode names like `Diário` are kept).
 - Import is sandboxed with file-count / file-size / event-count / field-length
   caps to prevent denial of service.
 - Every widget label renders as plain text; imported Markdown/HTML is never

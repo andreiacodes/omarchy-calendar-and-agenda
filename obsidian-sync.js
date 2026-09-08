@@ -8,17 +8,23 @@
 // make this write (or delete) files outside the chosen vault.
 //
 // usage:
-//   node obsidian-sync.js --vault <vault> --note <path> --id <eventId> --line <line>
-//   node obsidian-sync.js --vault <vault> --note <path> --id <eventId> --delete
+//   node obsidian-sync.js --vault <vault> --name <note.md> --id <eventId> --line <line>
+//   node obsidian-sync.js --vault <vault> --name <note.md> --id <eventId> --delete
 //   node obsidian-sync.js --detect-vault            # print {vault,folder,format}
+//
+// The daily note filename is passed as `--name`; the folder under the vault
+// is resolved here, fresh from Obsidian's daily-notes config, so entries
+// always land in the "New file location" Obsidian is configured with (no
+// folder configured -> vault root).
 const fs = require("fs")
 const path = require("path")
 
 const args = process.argv.slice(2)
-let vault = "", note = "", id = "", line = "", del = false
+let vault = "", name = "", notePath = "", id = "", line = "", del = false
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--vault") vault = args[++i]
-  else if (args[i] === "--note") note = args[++i]
+  else if (args[i] === "--name") name = args[++i]
+  else if (args[i] === "--note") notePath = args[++i]
   else if (args[i] === "--id") id = args[++i]
   else if (args[i] === "--line") line = args[++i]
   else if (args[i] === "--delete") del = true
@@ -27,12 +33,11 @@ for (let i = 0; i < args.length; i++) {
 
 function sanitizeFolder(f) {
   return String(f || "")
-    .replace(/^[\/\\]+/, "")
-    .replace(/[\/\\]+$/, "")
     .replace(/[\\]/g, "/")
     .split("/")
-    .filter(function (s) { return s && s !== "." && s !== ".." })
-    .map(function (s) { return s.replace(/[^A-Za-z0-9 _-]/g, "") })
+    .filter(function (s) { return s !== "" && s !== "." && s !== ".." })
+    .map(function (s) { return s.replace(/[\x00-\x1f\x7f]/g, "") })
+    .filter(function (s) { return s !== "" })
     .join("/")
 }
 
@@ -63,9 +68,9 @@ function printVault() {
       out.format = dn.format.trim()
     }
   } catch (e) {
-    // No daily-notes config yet: use a "Daily" folder only if one actually
-    // exists, otherwise Obsidian would put notes at the vault root.
-    try { if (fs.existsSync(path.join(v, "Daily"))) out.folder = "Daily" } catch (e2) {}
+    // No daily-notes config yet. Obsidian keeps notes at the vault root in
+    // that case, so no folder is used — never invent one from a directory
+    // that happens to exist (e.g. one this plugin once created).
   }
   out.folder = sanitizeFolder(out.folder)
   out.format = String(out.format).slice(0, 64)
@@ -96,7 +101,33 @@ function fallbackVaultFromHome() {
   return ""
 }
 
-if (!vault || !note || !id) process.exit(1)
+if (!vault || !id) process.exit(1)
+// Back-compat: an older panel sends the full note path as `--note`. Only the
+// bare filename is kept; the folder is always chosen below from Obsidian's
+// own daily-notes config, never from anything on the command line.
+if (!name) {
+  if (!notePath) process.exit(1)
+  name = path.basename(String(notePath).replace(/[\\]/g, "/"))
+}
+// `name` must be a bare filename: the folder is chosen below from Obsidian's
+// own daily-notes config, never from anything on the command line.
+if (/[\/\\]/.test(name)) process.exit(1)
+const note = dailyNotePath(vault, name)
+
+// Resolves a daily note's full path from Obsidian's daily-notes plugin config
+// ("New file location"), read here at call time so a change to Obsidian's
+// settings is picked up immediately. A missing or empty folder means Obsidian
+// keeps daily notes at the vault root.
+function dailyNotePath(v, noteName) {
+  try {
+    const dn = JSON.parse(
+      fs.readFileSync(path.join(v, ".obsidian/daily-notes.json"), "utf8"))
+    if (typeof dn.folder === "string" && dn.folder.trim() !== "") {
+      return path.join(v, sanitizeFolder(dn.folder.trim()), noteName)
+    }
+  } catch (e) { /* no config -> notes live at the vault root */ }
+  return path.join(v, noteName)
+}
 
 const marker = "<!-- calendar:" + id + " -->"
 
