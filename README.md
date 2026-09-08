@@ -74,7 +74,7 @@ The plugin treats note, vault, and event content as untrusted data:
   caps to prevent denial of service.
 - Every widget label renders as plain text; imported Markdown/HTML is never
   interpreted.
-- No privileged binary (`sudo`, `pkexec`, `su`, …) is ever invoked.
+- No privileged binary is ever invoked.
 
 ## Install
 
