@@ -94,7 +94,3 @@ The shell hot-reloads plugin code from
 `~/.config/omarchy/plugins/io.github.andreiacodes.calendar/` — save a copy there if you
 want to tweak anything locally.
 
-## Note
-
-The widget code itself contains no personal data; your events live in
-`~/.config/omarchy/calendar/events.json`, which is not part of this repo.
