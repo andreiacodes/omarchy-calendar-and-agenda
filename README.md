@@ -20,7 +20,7 @@ for your schedule.
 On the machine where the plugin should run:
 
 ```bash
-omarchy plugin add https://github.com/<your-user>/omarchy-calendar.git --enable
+omarchy plugin add https://github.com/andreiacodes/omarchy-calendar.git --enable
 ```
 
 Then place the widget on the bar (adjust section as you like):
