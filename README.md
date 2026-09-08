@@ -94,3 +94,14 @@ The shell hot-reloads plugin code from
 `~/.config/omarchy/plugins/io.github.andreiacodes.calendar/` — save a copy there if you
 want to tweak anything locally.
 
+## Remove
+
+```bash
+omarchy plugin remove io.github.andreiacodes.calendar
+```
+
+This unloads the widget from the bar and deletes any reminder timers the plugin
+scheduled (it asks for confirmation first; pass `--yes` to skip). Your events
+and settings are kept at `~/.config/omarchy/calendar/` — delete that folder too
+if you want them gone as well.
+
