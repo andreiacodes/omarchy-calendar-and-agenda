@@ -38,10 +38,10 @@ function sanitizeFolder(f) {
 
 function printVault() {
   const cfgPath = path.join(process.env.HOME || "", ".config/obsidian/obsidian.json")
+  let v = ""
   try {
     const cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8"))
     const vaults = cfg.vaults || cfg
-    let v = ""
     for (const vv of Object.values(vaults)) {
       if (vv.open) { v = String(vv.path || ""); break }
     }
@@ -49,22 +49,47 @@ function printVault() {
       const first = Object.values(vaults)[0]
       if (first) v = String(first.path || "")
     }
-    if (!v) return
-    const out = { vault: v, folder: "Daily", format: "YYYY-MM-DD" }
-    try {
-      const dn = JSON.parse(
-        fs.readFileSync(path.join(v, ".obsidian/daily-notes.json"), "utf8"))
-      if (typeof dn.folder === "string" && dn.folder.trim() !== "") {
-        out.folder = dn.folder.trim()
-      }
-      if (typeof dn.format === "string" && dn.format.trim() !== "") {
-        out.format = dn.format.trim()
-      }
-    } catch (e) { /* no daily-notes config -> defaults */ }
-    out.folder = sanitizeFolder(out.folder) || "Daily"
-    out.format = String(out.format).slice(0, 64)
-    process.stdout.write(JSON.stringify(out))
-  } catch (e) { /* no vault found / obsidian not configured */ }
+  } catch (e) { /* obsidian not configured yet -> fallback below */ }
+  if (!v) v = fallbackVaultFromHome()
+  if (!v) return
+  const out = { vault: v, folder: "Daily", format: "YYYY-MM-DD" }
+  try {
+    const dn = JSON.parse(
+      fs.readFileSync(path.join(v, ".obsidian/daily-notes.json"), "utf8"))
+    if (typeof dn.folder === "string" && dn.folder.trim() !== "") {
+      out.folder = dn.folder.trim()
+    }
+    if (typeof dn.format === "string" && dn.format.trim() !== "") {
+      out.format = dn.format.trim()
+    }
+  } catch (e) { /* no daily-notes config -> defaults */ }
+  out.folder = sanitizeFolder(out.folder) || "Daily"
+  out.format = String(out.format).slice(0, 64)
+  process.stdout.write(JSON.stringify(out))
+}
+
+// Obsidian marks a folder as a vault by keeping a `.obsidian` directory
+// inside it. When `~/.config/obsidian/obsidian.json` is missing (Obsidian
+// never wrote it) we fall back to that marker so the vault is found no
+// matter where it lives — directly in the home folder, or in any top-level
+// folder under it (e.g. ~/wiki, ~/Documents/wiki, ~/Notes, ...).
+function fallbackVaultFromHome() {
+  const home = process.env.HOME || ""
+  if (home === "") return ""
+  function isVault(dir) {
+    try { return fs.existsSync(path.join(dir, ".obsidian")) } catch (e) { return false }
+  }
+  if (isVault(home)) return home
+  try {
+    const entries = fs.readdirSync(home, { withFileTypes: true })
+    for (const e of entries) {
+      if (!e.isDirectory()) continue
+      if (e.name.charAt(0) === ".") continue
+      const p = path.join(home, e.name)
+      if (isVault(p)) return p
+    }
+  } catch (e) { /* no read access -> no vault */ }
+  return ""
 }
 
 if (!vault || !note || !id) process.exit(1)

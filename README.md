@@ -23,7 +23,10 @@ Two-way sync between the calendar and your Obsidian daily notes
 - Each event is written into the matching daily note as a checklist line hiding
   a marker comment (`<!-- calendar:<id> -->`):
 
-      - [ ] 09:00 – 12:00 Cortejo (Lisboa) — description <!-- calendar:xc7... -->
+      - [ ] <time> <name-of-the-event> <location> - <description> <!-- calendar:<id> -->
+
+  `<time>` is only written when the event has start/end times (e.g.
+  `09:00 – 12:00`); events without times omit it.
 
 - The marker makes updates idempotent: saving an event again replaces its line
   instead of appending a duplicate. The marker is invisible in Obsidian
@@ -39,13 +42,17 @@ Two-way sync between the calendar and your Obsidian daily notes
   configuration, or stored in `~/.config/omarchy/calendar/settings.json`:
 
       { "obsidianSync": true,
-        "vaultPath": "/home/<you>/Documents/wiki",
+        "vaultPath": "/home/<you>/my-vault",
         "dailyFolder": "Daily",
         "dailyFormat": "YYYY-MM-DD" }
 
   Detection reads `~/.config/obsidian/obsidian.json` plus the vault's
-  `.obsidian/daily-notes.json`, so folder and file-format choices made inside
-  Obsidian are honoured on every machine.
+  `.obsidian/daily-notes.json`, so whatever vault path you use in Obsidian is
+  honoured and the folder / file-format choices made inside Obsidian are
+  picked up on every machine. If Obsidian hasn't written its config yet, the
+  plugin falls back to scanning the home folder for anything containing a
+  `.obsidian` directory — so a vault kept directly in `~/`, or in any folder
+  under it (`~/Notes`, `~/Documents`, …), is still found.
 
 ## Security
 
