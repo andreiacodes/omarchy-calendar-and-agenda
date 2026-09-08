@@ -9,7 +9,7 @@ import "Model.js" as Events
 // opens the agenda panel on click.
 BarWidget {
   id: root
-  moduleName: "org.omarchy.calendar"
+  moduleName: "io.github.andreiacodes.calendar"
 
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
 
@@ -52,7 +52,7 @@ BarWidget {
   }
 
   IpcHandler {
-    target: "org.omarchy.calendar"
+    target: "io.github.andreiacodes.calendar"
 
     function open() { root.open() }
     function close() { root.close() }

@@ -8,7 +8,7 @@ import "SpawnGuard.js" as SpawnGuard
 
 Panel {
   id: root
-  moduleName: "org.omarchy.calendar"
+  moduleName: "io.github.andreiacodes.calendar"
   manageIpc: false
 
   property var anchorItem: null

@@ -81,17 +81,17 @@ The plugin treats note, vault, and event content as untrusted data:
 On the machine where the plugin should run:
 
 ```bash
-omarchy plugin add https://github.com/andreiacodes/omarchy-calendar.git --enable
+omarchy plugin add https://github.com/andreiacodes/omarchy-calendar-and-agenda.git --enable
 ```
 
 Then place the widget on the bar (adjust section as you like):
 
 ```bash
-omarchy bar put org.omarchy.calendar --section right
+omarchy bar put io.github.andreiacodes.calendar --section right
 ```
 
 The shell hot-reloads plugin code from
-`~/.config/omarchy/plugins/org.omarchy.calendar/` — save a copy there if you
+`~/.config/omarchy/plugins/io.github.andreiacodes.calendar/` — save a copy there if you
 want to tweak anything locally.
 
 ## Note

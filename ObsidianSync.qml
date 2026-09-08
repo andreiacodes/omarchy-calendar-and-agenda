@@ -24,9 +24,9 @@ Item {
   readonly property string settingsPath:
     Quickshell.env("HOME") + "/.config/omarchy/calendar/settings.json"
   readonly property string scriptPath:
-    Quickshell.env("HOME") + "/.config/omarchy/plugins/org.omarchy.calendar/obsidian-sync.js"
+    Quickshell.env("HOME") + "/.config/omarchy/plugins/io.github.andreiacodes.calendar/obsidian-sync.js"
   readonly property string importScriptPath:
-    Quickshell.env("HOME") + "/.config/omarchy/plugins/org.omarchy.calendar/obsidian-import.js"
+    Quickshell.env("HOME") + "/.config/omarchy/plugins/io.github.andreiacodes.calendar/obsidian-import.js"
 
   property bool obsidianSync: true
   property string vaultPath: ""

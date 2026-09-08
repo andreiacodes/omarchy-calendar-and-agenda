@@ -1,9 +1,10 @@
 {
   "schemaVersion": 1,
-  "id": "org.omarchy.calendar",
+  "id": "io.github.andreiacodes.calendar",
   "name": "Calendar",
   "version": "1.0.0",
   "author": "Andreia",
+  "license": "MIT",
   "description": "Mini calendar agenda for college schedule and recurring events",
   "kinds": [
     "bar-widget"
