@@ -43,16 +43,17 @@ Two-way sync between the calendar and your Obsidian daily notes
 
       { "obsidianSync": true,
         "vaultPath": "/home/<you>/my-vault",
-        "dailyFolder": "Daily",
+        "dailyFolder": "Journal/Notes",
         "dailyFormat": "YYYY-MM-DD" }
 
   Detection reads `~/.config/obsidian/obsidian.json` plus the vault's
-  `.obsidian/daily-notes.json`, so whatever vault path you use in Obsidian is
-  honoured and the folder / file-format choices made inside Obsidian are
-  picked up on every machine. If Obsidian hasn't written its config yet, the
-  plugin falls back to scanning the home folder for anything containing a
-  `.obsidian` directory — so a vault kept directly in `~/`, or in any folder
-  under it (`~/Notes`, `~/Documents`, …), is still found.
+  `.obsidian/daily-notes.json` — the file Obsidian itself writes for its
+  Daily notes plugin — so the **daily-notes folder is whatever Obsidian is
+  configured to use**, no matter its name or nesting (`Daily`,
+  `Journal/Notes`, …). If Obsidian has no daily-notes folder configured the
+  notes live at the vault root, matching Obsidian's own default. A vault kept
+  directly in `~/`, or in any folder under it, is still found even when
+  Obsidian hasn't written its config yet.
 
 ## Security
 

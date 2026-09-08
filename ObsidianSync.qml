@@ -60,7 +60,7 @@ Item {
     importProc.command = [
       "node", root.importScriptPath,
       "--vault", root.vaultPath,
-      "--folder", root.sanitizeFolder(root.dailyFolder) || "Daily",
+      "--folder", root.sanitizeFolder(root.dailyFolder),
       "--format", String(root.dailyFormat).slice(0, 64)
     ]
     if (SpawnGuard.valid(importProc.command)) importProc.running = true
@@ -73,7 +73,7 @@ Item {
     var vp = String(obj.vaultPath || "")
     if (vp === "undefined") vp = ""
     root.vaultPath = vp
-    root.dailyFolder = root.sanitizeFolder(String(obj.dailyFolder || "Daily")) || "Daily"
+    root.dailyFolder = root.sanitizeFolder(String(obj.dailyFolder !== undefined ? obj.dailyFolder : "Daily"))
     root.dailyFormat = String(obj.dailyFormat || "YYYY-MM-DD").slice(0, 64)
     if (root.vaultPath !== "") {
       root.vaultReady()
@@ -182,10 +182,11 @@ function detectVault() {
 
     var vault = root.vaultPath.replace(/\/+$/, "")
     var folder = root.sanitizeFolder(root.dailyFolder)
-    if (folder === "") folder = "Daily"
     var name = root.formatDateKey(w.dateKey, root.dailyFormat)
       .replace(/[/\\:*?"<>|]/g, "-") // never allow separators in a note name
-    var note = vault + "/" + folder + "/" + name + ".md"
+    var note = folder === ""
+      ? vault + "/" + name + ".md"          // vault-root daily notes
+      : vault + "/" + folder + "/" + name + ".md"
 
     if (w.mode === "remove") {
       var rid = String(w.id || "")
@@ -331,7 +332,7 @@ function detectVault() {
         try { out = JSON.parse(String(text).trim()) } catch (e) {}
         if (out && out.vault) {
           root.vaultPath = out.vault
-          root.dailyFolder = out.folder ? (root.sanitizeFolder(out.folder) || "Daily") : root.dailyFolder
+          root.dailyFolder = root.sanitizeFolder(String(out.folder !== undefined ? out.folder : root.dailyFolder))
           root.dailyFormat = out.format ? String(out.format).slice(0, 64) : root.dailyFormat
           root.saveSettings()
           var ev = root.pendingEvent

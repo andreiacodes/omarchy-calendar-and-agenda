@@ -52,18 +52,22 @@ function printVault() {
   } catch (e) { /* obsidian not configured yet -> fallback below */ }
   if (!v) v = fallbackVaultFromHome()
   if (!v) return
-  const out = { vault: v, folder: "Daily", format: "YYYY-MM-DD" }
+  const out = { vault: v, folder: "", format: "YYYY-MM-DD" }
+  // Obsidian's daily-notes settings live in the vault itself, so Obsidian is
+  // the source of truth: an empty folder means notes live at the vault root.
   try {
     const dn = JSON.parse(
       fs.readFileSync(path.join(v, ".obsidian/daily-notes.json"), "utf8"))
-    if (typeof dn.folder === "string" && dn.folder.trim() !== "") {
-      out.folder = dn.folder.trim()
-    }
+    if (typeof dn.folder === "string") out.folder = dn.folder.trim()
     if (typeof dn.format === "string" && dn.format.trim() !== "") {
       out.format = dn.format.trim()
     }
-  } catch (e) { /* no daily-notes config -> defaults */ }
-  out.folder = sanitizeFolder(out.folder) || "Daily"
+  } catch (e) {
+    // No daily-notes config yet: use a "Daily" folder only if one actually
+    // exists, otherwise Obsidian would put notes at the vault root.
+    try { if (fs.existsSync(path.join(v, "Daily"))) out.folder = "Daily" } catch (e2) {}
+  }
+  out.folder = sanitizeFolder(out.folder)
   out.format = String(out.format).slice(0, 64)
   process.stdout.write(JSON.stringify(out))
 }

@@ -169,10 +169,10 @@ function parseLine(raw, id) {
   }
 }
 
-folder = sanitizeFolder(folder) || "Daily"
+folder = sanitizeFolder(folder)
 const rootReal = vaultDir(vault)
 const out = []
-const dir = path.join(vault, folder)
+const dir = folder === "" ? vault : path.join(vault, folder)
 let dirReal = null
 try { dirReal = fs.realpathSync(dir) } catch (e) { dirReal = dir }
 const rootSep = rootReal ? rootReal + path.sep : ""
