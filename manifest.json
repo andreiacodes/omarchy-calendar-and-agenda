@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "org.omarchy.calendar",
+  "name": "Calendar",
+  "version": "1.0.0",
+  "author": "Andreia",
+  "description": "Mini calendar agenda for college schedule and recurring events",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Calendar",
+    "description": "Mini calendar agenda for college schedule and recurring events",
+    "category": "Time",
+    "allowMultiple": false
+  }
+}

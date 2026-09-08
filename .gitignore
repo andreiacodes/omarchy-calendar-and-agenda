@@ -1,0 +1,5 @@
+# Local data and backups — never commit these
+events.json
+*.bak
+*.bak.*
+.DS_Store
