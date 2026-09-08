@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "SpawnGuard.js" as SpawnGuard
 
 // Manages Omarchy reminder timers for calendar events.
 //
@@ -14,12 +15,23 @@ Item {
 
   readonly property string reminderDir: Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
 
+  readonly property var trustedEnv: SpawnGuard.envPinned(
+    Quickshell.env("PATH") || "",
+    Quickshell.env("HOME") || "",
+    Quickshell.env("USER") || "",
+    Quickshell.env("LANG") || "",
+    root.reminderDir)
+
   Component {
     id: procFactory
-    Process {}
+    Process {
+      clearEnvironment: true
+      environment: root.trustedEnv
+    }
   }
 
   function spawn(args) {
+    if (!SpawnGuard.valid(args)) return
     var p = procFactory.createObject(root, { command: args })
     p.running = true
   }

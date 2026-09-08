@@ -469,13 +469,23 @@ function buildEvent(eventData) {
   return { ok: true, event: newEvent }
 }
 
+// Returns a copy of the stored event with `eventId`, or null.
+function findStoredById(eventId) {
+  for (var i = 0; i < events.length; i++) {
+    if (events[i].id === eventId) {
+      return JSON.parse(JSON.stringify(events[i]))
+    }
+  }
+  return null
+}
+
 // Appends to the in-memory list. Returns { ok, reason }. The caller persists
 // the result with `eventsJson()`.
 function addEvent(eventData) {
   var res = buildEvent(eventData)
   if (!res.ok) return { ok: false, reason: res.reason }
   events.push(res.event)
-  return { ok: true }
+  return { ok: true, event: res.event }
 }
 
 // Replaces an existing event, keeping its id. Returns { ok, reason }.
@@ -487,10 +497,44 @@ function updateEvent(eventData) {
   for (var i = 0; i < events.length; i++) {
     if (events[i].id === eventData.id) {
       events[i] = res.event
-      return { ok: true }
+      return { ok: true, event: res.event }
     }
   }
   return { ok: false, reason: "Event not found" }
+}
+
+// Imports events that came back from Obsidian daily notes on another synced
+// device. Only adds ids the plugin does not already know. Returns the number
+// of new events. The caller persists with `eventsJson()`.
+function importEvents(list) {
+  if (!list) return 0
+  var added = 0
+  for (var i = 0; i < list.length; i++) {
+    var e = list[i]
+    if (!e || !e.id || !e.title) continue
+    var evId = String(e.id)
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(evId)) continue
+    var dup = false
+    for (var j = 0; j < events.length; j++) {
+      if (events[j].id === evId) { dup = true; break }
+    }
+    if (dup) continue
+    var start = dateFromKey(e.date)
+    var title = String(e.title || "").trim().slice(0, 200)
+    if (title === "") continue
+    events.push({
+      id: evId,
+      title: title,
+      startHHMM: String(e.startHHMM || ""),
+      endHHMM: String(e.endHHMM || ""),
+      location: String(e.location || "").trim().slice(0, 500),
+      description: String(e.description || "").trim().slice(0, 2000),
+      date: String(e.date || ""),
+      day: start ? weekdayNum(start) : e.day || 1
+    })
+    added++
+  }
+  return added
 }
 
 // Removes `eventId` from the in-memory list. Returns { ok }.
@@ -537,7 +581,10 @@ function reminderPlan() {
   var out = []
   for (var i = 0; i < events.length; i++) {
     var e = events[i]
-    var mins = e.reminderMins
+    // Only the leads the UI offers may create timers; anything else (a
+    // hand-crafted events.json) is treated as "none".
+    var mins = [5, 15, 30, 60].indexOf(Number(e.reminderMins)) >= 0
+      ? Number(e.reminderMins) : 0
     if (!(mins > 0)) continue
     if (!validateTime(e.startHHMM)) continue
 
@@ -618,6 +665,8 @@ if (typeof module !== "undefined") {
     reminderPlan: reminderPlan,
     addEvent: addEvent,
     updateEvent: updateEvent,
-    deleteEvent: deleteEvent
+    deleteEvent: deleteEvent,
+    findStoredById: findStoredById,
+    importEvents: importEvents
   }
 }

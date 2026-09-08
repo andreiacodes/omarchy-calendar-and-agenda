@@ -19,7 +19,10 @@ Column {
   width: parent ? parent.width : 0
   spacing: Style.space(3)
 
+  // Header is indented to match the EventItem row padding so the text sits
+  // inside the today-column highlight instead of at its edge.
   PanelSectionHeader {
+    x: Style.space(8)
     text: daySection.sectionText
     foreground: daySection.dim
     fontFamily: daySection.fontFamily

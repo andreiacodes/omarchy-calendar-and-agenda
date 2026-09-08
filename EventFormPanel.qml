@@ -18,6 +18,10 @@ Item {
   property color foreground: Color.foreground
   property string fontFamily: Style.font.family
 
+  // Full content height the form needs to show every field without scrolling.
+  readonly property real desiredContentHeight:
+    column.implicitHeight + card.contentTopInset + card.contentBottomInset + Style.space(4)
+
   signal save(var eventData)
   signal cancel()
 
@@ -168,8 +172,7 @@ Item {
     id: card
     anchors.centerIn: parent
     width: Math.min(parent.width - Style.space(32), Style.space(430))
-    height: Math.min(column.implicitHeight + card.contentTopInset + card.contentBottomInset + Style.space(4),
-      parent.height - Style.space(16))
+    height: Math.min(root.desiredContentHeight, parent.height - Style.space(16))
     color: Color.popups.background
     borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
     radius: Style.cornerRadius

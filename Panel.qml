@@ -4,6 +4,7 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "Model.js" as Events
+import "SpawnGuard.js" as SpawnGuard
 
 Panel {
   id: root
@@ -90,12 +91,19 @@ Panel {
   function syncFromFile(text) {
     Events.seedEvents(Events.parseStored(text))
     reminders.sync(Events.reminderPlan())
+    obsidianSync.backfillStored(Events.storedEvents())
     root.recompute()
   }
 
   function deleteEventById(eventId) {
+    var ev = null
+    var all = Events.storedEvents()
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].id === eventId) { ev = all[i]; break }
+    }
     var res = Events.deleteEvent(eventId)
     if (res.ok) {
+      if (ev) obsidianSync.removeEvent(ev.id, ev.date || ev.startDate)
       root.writeEvents(Events.eventsJson())
       reminders.sync(Events.reminderPlan())
       root.recompute()
@@ -107,6 +115,16 @@ Panel {
     formPanel.openForEdit(event)
   }
 
+  // Manual resync: re-add any events the user removed from Obsidian notes.
+  function refreshObsidian() {
+    obsidianSync.refresh(Events.storedEvents())
+  }
+
+  // Manual import: pull in events found in the notes that the plugin lacks.
+  function importObsidian() {
+    obsidianSync.importFromNotes()
+  }
+
   function writeEvents(json) {
     if (root.dirReady) {
       eventsFile.setText(json)
@@ -114,7 +132,7 @@ Panel {
     }
     root.pendingWrite = json
     mkdirProcess.command = ["mkdir", "-p", root.eventsDir]
-    mkdirProcess.running = true
+    if (SpawnGuard.valid(mkdirProcess.command)) mkdirProcess.running = true
   }
 
   function updateToday() {
@@ -170,6 +188,13 @@ Panel {
 
   Process {
     id: mkdirProcess
+    clearEnvironment: true
+    environment: SpawnGuard.envPinned(
+      Quickshell.env("PATH") || "",
+      Quickshell.env("HOME") || "",
+      Quickshell.env("USER") || "",
+      Quickshell.env("LANG") || "",
+      Quickshell.env("XDG_RUNTIME_DIR") || "/tmp")
     command: ["mkdir", "-p", root.eventsDir]
     onExited: function(exitCode, exitStatus) {
       root.dirReady = true
@@ -199,6 +224,20 @@ Panel {
     id: reminders
   }
 
+  ObsidianSync {
+    id: obsidianSync
+    onVaultReady: obsidianSync.backfillStored(Events.storedEvents())
+    onEventsFound: function(list) {
+      var added = Events.importEvents(list)
+      if (added > 0) {
+        root.writeEvents(Events.eventsJson())
+        reminders.sync(Events.reminderPlan())
+        root.recompute()
+        root.notifyChange()
+      }
+    }
+  }
+
   KeyboardPanel {
     id: panel
     anchorItem: root.anchorItem
@@ -207,7 +246,9 @@ Panel {
     open: root.opened
     focusTarget: keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(540))
-    contentHeight: panel.fittedContentHeight(column.implicitHeight, Style.space(540))
+    contentHeight: panel.fittedContentHeight(
+      formPanel.opened ? formPanel.desiredContentHeight : column.implicitHeight,
+      formPanel.opened ? Style.space(760) : Style.space(540))
 
     PanelKeyCatcher {
       id: keyCatcher
@@ -236,7 +277,7 @@ Panel {
         width: scroll.width
         spacing: Style.space(14)
 
-        // Header: title + new-event button
+        // Header: title + obsidian controls + new-event button
         Item {
           width: parent.width
           implicitHeight: Math.max(titleText.implicitHeight, addButton.implicitHeight + Style.space(2))
@@ -251,6 +292,52 @@ Panel {
             font.family: root.fnt
             font.pixelSize: Style.font.heading
             font.bold: true
+          }
+
+          Button {
+            id: importButton
+            anchors.right: refreshButton.left
+            anchors.rightMargin: Style.space(6)
+            anchors.verticalCenter: parent.verticalCenter
+            text: "⇩"
+            fontSize: Style.font.bodySmall
+            horizontalPadding: Style.spacing.controlGap
+            foreground: root.fg
+            accent: Color.accent
+            fontFamily: root.fnt
+            tooltipText: "Import events found in the Obsidian notes into the plugin."
+            onClicked: root.importObsidian()
+          }
+
+          Button {
+            id: refreshButton
+            anchors.right: obsidianToggle.left
+            anchors.rightMargin: Style.space(6)
+            anchors.verticalCenter: parent.verticalCenter
+            text: "⟳"
+            fontSize: Style.font.bodySmall
+            horizontalPadding: Style.spacing.controlGap
+            foreground: root.fg
+            accent: Color.accent
+            fontFamily: root.fnt
+            tooltipText: "Re-add events that are missing from the Obsidian daily notes."
+            onClicked: root.refreshObsidian()
+          }
+
+          Button {
+            id: obsidianToggle
+            anchors.right: addButton.left
+            anchors.rightMargin: Style.space(6)
+            anchors.verticalCenter: parent.verticalCenter
+            text: obsidianSync.obsidianSync ? "Obsidian: on" : "Obsidian: off"
+            selected: obsidianSync.obsidianSync
+            fontSize: Style.font.bodySmall
+            horizontalPadding: Style.spacing.controlGap
+            foreground: root.fg
+            accent: Color.accent
+            fontFamily: root.fnt
+            tooltipText: "Mirror saved events into Obsidian daily notes. Off skips syncing new events."
+            onClicked: obsidianSync.toggleSync()
           }
 
           Button {
@@ -342,8 +429,6 @@ Panel {
 
                 Rectangle {
                   anchors.fill: parent
-                  anchors.leftMargin: Style.space(2)
-                  anchors.rightMargin: Style.space(2)
                   visible: parent.modelData.isToday && !parent.modelData.hasLive
                   radius: Style.cornerRadius
                   color: Util.alpha(Color.accent, 0.10)
@@ -631,10 +716,13 @@ Panel {
       foreground: root.fg
       fontFamily: root.fnt
       onSave: function(ev) {
+        var oldEvent = ev.id ? Events.findStoredById(ev.id) : null
         var res = ev.id ? Events.updateEvent(ev) : Events.addEvent(ev)
         if (res.ok) {
           root.writeEvents(Events.eventsJson())
           reminders.sync(Events.reminderPlan())
+          var oldKey = oldEvent ? (oldEvent.date || oldEvent.startDate) : null
+          obsidianSync.syncEvent(res.event, oldKey)
           formPanel.close()
           root.recompute()
           root.notifyChange()
